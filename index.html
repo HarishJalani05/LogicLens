@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>LogicLens</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Fira+Code:wght@300;400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="logiclens.css">
+    <style>
+        /* Reusable Correction Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 8, 16, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border2);
+            border-radius: 18px;
+            max-width: 680px;
+            width: 90%;
+            padding: 32px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+            transform: scale(0.92);
+            transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+            text-align: left;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .modal-title {
+            font-family: var(--ff);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--amber);
+        }
+
+        .modal-body {
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text2);
+            margin-bottom: 24px;
+        }
+
+        .modal-error-box {
+            background: rgba(255, 181, 71, 0.08);
+            border: 1px solid rgba(255, 181, 71, 0.2);
+            border-radius: 10px;
+            padding: 14px;
+            color: var(--text);
+            font-size: 13.5px;
+            margin-bottom: 20px;
+        }
+
+        .modal-code-comparison {
+            margin-bottom: 24px;
+        }
+
+        .diff-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 600px) {
+            .diff-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .diff-box {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .diff-box-title {
+            font-family: var(--ff);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text3);
+            margin-bottom: 6px;
+        }
+
+        .diff-code {
+            font-family: var(--fm);
+            font-size: 11px;
+            background: #060913;
+            color: #d1d5db;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            max-height: 220px;
+            overflow-y: auto;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        body.light .diff-code {
+            background: #f3f4f6;
+            color: #1f2937;
+            border-color: #e5e7eb;
+        }
+
+        .diff-line {
+            min-height: 18px;
+            padding: 0 4px;
+        }
+
+        .diff-line.diff-deleted {
+            background: rgba(255, 79, 106, 0.15);
+            color: #ff8fa2;
+            text-decoration: line-through;
+        }
+
+        body.light .diff-line.diff-deleted {
+            background: rgba(255, 79, 106, 0.12);
+            color: #d9263e;
+        }
+
+        .diff-line.diff-added {
+            background: rgba(0, 224, 150, 0.15);
+            color: #6effd0;
+            font-weight: 600;
+        }
+
+        body.light .diff-line.diff-added {
+            background: rgba(0, 224, 150, 0.12);
+            color: #008f5d;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 14px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-family: var(--ff);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, var(--glow), var(--glow2));
+            color: #000;
+            box-shadow: 0 4px 12px rgba(0, 229, 255, 0.2);
+        }
+
+        .modal-btn.primary:hover {
+            box-shadow: 0 6px 16px rgba(0, 229, 255, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .modal-btn.secondary {
+            background: transparent;
+            border-color: var(--border2);
+            color: var(--text2);
+        }
+
+        .modal-btn.secondary:hover {
+            background: var(--surface2);
+            color: var(--text);
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <div class="logo">
+            <a href="cover.html"
+                style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 10px;">
+                <div class="logo-mark">L</div>
+                <div class="logo-text">LogicLens</div>
+            </a>
+        </div>
+        <div class="nav-right">
+            <a href="cover.html"
+                style="color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s;"
+                onmouseover="this.style.color='var(--glow)'" onmouseout="this.style.color='var(--text2)'">Home</a>
+            <a href="index.html"
+                style="color: var(--glow); text-decoration: none; font-size: 14px; font-weight: 600; border-bottom: 2px solid var(--glow); padding-bottom: 4px;">DSA
+                Learning</a>
+            <a href="custom.html"
+                style="color: var(--text2); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s;"
+                onmouseover="this.style.color='var(--glow)'" onmouseout="this.style.color='var(--text2)'">Custom
+                Code</a>
+            <label class="switch">
+                <input type="checkbox" id="themeToggle" />
+                <span class="slider"></span>
+            </label>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1>Visualize Code Logic</h1>
+        <p>
+            Understand algorithms, data structures, and program behavior visually.
+        </p>
+    </section>
+
+    <div class="container">
+        <div class="editor">
+            <h3>Algorithm Setup</h3>
+
+            <span class="input-label">Custom Array:</span>
+            <input type="text" id="arrayInput" value="30, 10, 45, 20, 15" placeholder="e.g. 10, 50, 20, 40" />
+
+            <span class="input-label">Paste Code:</span>
+            <div class="samples-row">
+                <span class="sample-lbl">Demos:</span>
+                <button class="sample-btn" onclick="loadDemo('bubble')">Bubble Sort</button>
+                <button class="sample-btn" onclick="loadDemo('insertion')">Insertion Sort</button>
+                <button class="sample-btn" onclick="loadDemo('selection')">Selection Sort</button>
+                <button class="sample-btn" onclick="loadDemo('quick')">Quick Sort</button>
+            </div>
+            <textarea id="codeInput">
+for(int i=0;i<n;i++){
+ for(int j=0;j<n-i-1;j++){
+  if(arr[j] > arr[j+1]){
+   swap(arr[j],arr[j+1]);
+  }
+ }
+}
+</textarea>
+            <button class="viz-btn" id="vizBtn" onclick="analyzeCode()">
+                Visualize Logic
+            </button>
+        </div>
+
+        <div class="visualizer">
+            <h3>Sorting Visualization</h3>
+
+            <div class="legend">
+                <span><span class="box" style="background: #eab308"></span>Compare</span>
+                <span><span class="box" style="background: #ef4444"></span>Swap</span>
+                <span><span class="box" style="background: #22c55e"></span>Sorted</span>
+                <span><span class="box" style="background: #38bdf8"></span>Unsorted</span>
+            </div>
+
+            <div class="canvas" id="canvas"></div>
+
+            <div class="step-box" id="stepText">▶ System Ready.</div>
+
+            <div class="info-panel" id="infoPanel"
+                style="display: none; margin-top: 10px; gap: 10px; justify-content: space-between;">
+                <div class="info-card"
+                    style="flex:1; background:var(--surface2); padding:10px 14px; border-radius:8px; border:1px solid var(--border); font-family:var(--fm); font-size:11px; color:var(--text2);">
+                    <strong
+                        style="color:var(--text); text-transform:uppercase; letter-spacing:0.05em; font-size:9px; display:block; margin-bottom:4px;">Language</strong>
+                    <span id="langText" style="color:var(--blue); font-weight:600;">-</span>
+                </div>
+                <div class="info-card"
+                    style="flex:1; background:var(--surface2); padding:10px 14px; border-radius:8px; border:1px solid var(--border); font-family:var(--fm); font-size:11px; color:var(--text2);">
+                    <strong
+                        style="color:var(--text); text-transform:uppercase; letter-spacing:0.05em; font-size:9px; display:block; margin-bottom:4px;">Time
+                        Complexity</strong>
+                    <div style="display: flex; flex-direction: column; gap: 2px;">
+                        <span><span style="font-size: 8px; color: var(--text2);">Best:</span> <span id="timeBest"
+                                style="color:var(--glow); font-weight:600;">-</span></span>
+                        <span><span style="font-size: 8px; color: var(--text2);">Avg:</span> <span id="timeAvg"
+                                style="color:var(--glow); font-weight:600;">-</span></span>
+                        <span><span style="font-size: 8px; color: var(--text2);">Worst:</span> <span id="timeWorst"
+                                style="color:var(--glow); font-weight:600;">-</span></span>
+                    </div>
+                </div>
+                <div class="info-card"
+                    style="flex:1; background:var(--surface2); padding:10px 14px; border-radius:8px; border:1px solid var(--border); font-family:var(--fm); font-size:11px; color:var(--text2);">
+                    <strong
+                        style="color:var(--text); text-transform:uppercase; letter-spacing:0.05em; font-size:9px; display:block; margin-bottom:4px;">Space
+                        Complexity</strong>
+                    <span id="spaceText" style="color:var(--amber); font-weight:600;">-</span>
+                </div>
+            </div>
+
+            <div class="media-controls">
+                <div class="btn-group">
+                    <button class="btn-icon" onclick="jumpToStart()">⏮</button>
+                    <button class="btn-icon" onclick="stepBack()">◀</button>
+                    <button class="btn-play" id="playPauseBtn" onclick="togglePlay()">
+                        ▶ Play
+                    </button>
+                    <button class="btn-icon" onclick="stepForward()">▶</button>
+                    <button class="btn-icon" onclick="jumpToEnd()">⏭</button>
+                </div>
+
+                <div class="slider-group" style="margin-bottom: 10px;">
+                    <span>Timeline</span>
+                    <input type="range" id="progressSlider" min="0" max="0" value="0" oninput="scrubTimeline()" />
+                </div>
+
+                <div class="speed-controls">
+                    <span class="speed-label">Speed:</span>
+                    <button class="speed-btn" id="btn-slow" onclick="setSpeed(1600, 'slow')">Slow</button>
+                    <button class="speed-btn active" id="btn-normal" onclick="setSpeed(1000, 'normal')">Normal</button>
+                    <button class="speed-btn" id="btn-fast" onclick="setSpeed(400, 'fast')">Fast</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <section class="structures">
+        <h2 style="margin-bottom: 25px">Data Structures</h2>
+        <div class="cards">
+            <div class="card" onclick="window.location.href='stack.html'">
+                <h3>Stack</h3>
+                <p>Push / Pop animation</p>
+            </div>
+            <div class="card" onclick="window.location.href='queue.html'">
+                <h3>Queue</h3>
+                <p>Enqueue / Dequeue flow</p>
+            </div>
+            <div class="card" onclick="window.location.href='trees.html'">
+                <h3>Trees</h3>
+                <p>Binary tree traversal</p>
+            </div>
+            <div class="card" onclick="window.location.href='graphs.html'">
+                <h3>Graphs</h3>
+                <p>BFS / DFS exploration</p>
+            </div>
+            <div class="card" onclick="window.location.href='strings.html'">
+                <h3>Strings</h3>
+                <p>Pattern matching</p>
+            </div>
+            <div class="card" onclick="window.location.href='sentences.html'">
+                <h3>Sentences</h3>
+                <p>Text structure visualization</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>LogicLens • Visualizing Code Logic</footer>
+
+    <script>
+        document.getElementById("themeToggle").addEventListener("change", () => {
+            document.body.classList.toggle("light");
+        });
+
+        const demos = {
+            bubble: "void bubbleSort(int arr[], int n) {\n  for(int i=0; i<n; i++) {\n    for(int j=0; j<n-i-1; j++) {\n      if(arr[j] > arr[j+1]) {\n        int temp = arr[j];\n        arr[j] = arr[j+1];\n        arr[j+1] = temp;\n      }\n    }\n  }\n}",
+            insertion: "void insertionSort(int arr[], int n) {\n    for (int i = 1; i < n; i++) {\n        int key = arr[i];\n        int j = i - 1;\n        while (j >= 0 && arr[j] > key) {\n            arr[j + 1] = arr[j];\n            j = j - 1;\n        }\n        arr[j + 1] = key;\n    }\n}",
+            selection: "class SelectionSort {\n    void sort(int arr[]) {\n        int n = arr.length;\n        for (int i = 0; i < n-1; i++) {\n            int min_idx = i;\n            for (int j = i+1; j < n; j++) {\n                if (arr[j] < arr[min_idx]) {\n                    min_idx = j;\n                }\n            }\n            int temp = arr[min_idx];\n            arr[min_idx] = arr[i];\n            arr[i] = temp;\n        }\n    }\n}",
+            quick: "def quick_sort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quick_sort(left) + middle + quick_sort(right)"
+        };
+
+        function loadDemo(type) {
+            document.getElementById("codeInput").value = demos[type];
+        }
+
+        /* --- HYBRID ENGINE STATE --- */
+        let steps = []; // Stores the dynamically fetched snapshots
+        let currentStep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+        let speedMs = 1000;
+
+        // 1. HYBRID FETCH (Calls Node.js/Gemini Backend)
+        const isLocalDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:";
+        const API_URL = isLocalDev ? "http://localhost:5000/api/analyze" : "/api/analyze";
+
+        async function analyzeCode() {
+            const code = document.querySelector("textarea").value;
+
+            // --- NEW: DYNAMIC ARRAY PARSING ---
+            const rawInput = document.getElementById("arrayInput").value;
+
+            // Turn "30, 10, 45" into an actual JavaScript array of numbers: [30, 10, 45]
+            let parsedArray = rawInput.split(',').map(num => parseInt(num.trim(), 10)).filter(num => !isNaN(num));
+
+            // Fallback: If user types letters or leaves it blank, reset to default
+            if (parsedArray.length === 0) {
+                parsedArray = [30, 10, 45, 20, 15];
+                document.getElementById("arrayInput").value = "30, 10, 45, 20, 15";
+            }
+            // ----------------------------------
+
+            let btn = document.querySelector(".viz-btn");
+            let stepText = document.getElementById("stepText");
+
+            pausePlayback();
+            // ... (keep the rest of your fetch try/catch block exactly the same below this line!)
+            btn.innerText = "Analyzing...";
+            btn.disabled = true;
+            stepText.innerText = "▶ Analysing and preparing Visualisation";
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        array: parsedArray,
+                        code: code,
+                        algorithm: "custom",
+                    }),
+                });
+
+                const data = await response.json();
+
+                // --- Syntax Error Interception ---
+                if (data.has_syntax_errors && data.corrected_code) {
+                    showCorrectionModal(data.error_details, data.corrected_code, () => {
+                        continueVisualization(data);
+                    });
+                } else {
+                    continueVisualization(data);
+                }
+            } catch (err) {
+                stepText.innerText =
+                    "▶ Connection Error: Is your Node server running on port 5000?";
+            } finally {
+                btn.innerText = "Visualize Logic";
+                btn.disabled = false;
+            }
+        }
+
+        let correctionCallback = null;
+        let pendingCorrectedCode = "";
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function generateDiffHtml(original, corrected) {
+            const originalLines = original.split('\n');
+            const correctedLines = corrected.split('\n');
+
+            let originalHtml = '';
+            let correctedHtml = '';
+
+            const maxLines = Math.max(originalLines.length, correctedLines.length);
+            for (let i = 0; i < maxLines; i++) {
+                const orig = originalLines[i] !== undefined ? originalLines[i] : '';
+                const corr = correctedLines[i] !== undefined ? correctedLines[i] : '';
+
+                if (orig.trim() === corr.trim()) {
+                    originalHtml += `<div class="diff-line">${escapeHtml(orig)}</div>`;
+                    correctedHtml += `<div class="diff-line">${escapeHtml(corr)}</div>`;
+                } else {
+                    originalHtml += `<div class="diff-line diff-deleted">${escapeHtml(orig) || '&nbsp;'}</div>`;
+                    correctedHtml += `<div class="diff-line diff-added">${escapeHtml(corr) || '&nbsp;'}</div>`;
+                }
+            }
+            return { originalHtml, correctedHtml };
+        }
+
+        function showCorrectionModal(errors, correctedCode, callback) {
+            const originalCode = document.getElementById("codeInput").value;
+            document.getElementById("modalErrorDetails").innerText = errors || "Minor syntax/formatting issues.";
+
+            // Generate side-by-side diff
+            const diff = generateDiffHtml(originalCode, correctedCode);
+            document.getElementById("modalOriginalCode").innerHTML = diff.originalHtml;
+            document.getElementById("modalCorrectedCode").innerHTML = diff.correctedHtml;
+
+            pendingCorrectedCode = correctedCode;
+            correctionCallback = callback;
+            document.getElementById("correctionModal").classList.add("active");
+        }
+
+        function handleCorrectionResponse(apply) {
+            document.getElementById("correctionModal").classList.remove("active");
+            if (apply && pendingCorrectedCode) {
+                document.getElementById("codeInput").value = pendingCorrectedCode;
+            }
+            if (correctionCallback) {
+                correctionCallback();
+            }
+        }
+
+        function continueVisualization(data) {
+            let stepText = document.getElementById("stepText");
+            steps = data.steps || [];
+
+            document.getElementById("infoPanel").style.display = "flex";
+            document.getElementById("langText").innerText = data.language || "Unknown";
+            if (data.complexity && data.complexity.time && typeof data.complexity.time === 'object') {
+                document.getElementById("timeBest").innerText = data.complexity.time.best || "-";
+                document.getElementById("timeAvg").innerText = data.complexity.time.average || "-";
+                document.getElementById("timeWorst").innerText = data.complexity.time.worst || "-";
+            } else {
+                let text = (data.complexity && data.complexity.time) ? data.complexity.time : "-";
+                document.getElementById("timeBest").innerText = text;
+                document.getElementById("timeAvg").innerText = text;
+                document.getElementById("timeWorst").innerText = text;
+            }
+            document.getElementById("spaceText").innerText = (data.complexity && data.complexity.space) ? data.complexity.space : "-";
+
+            if (steps.length > 0) {
+                document.getElementById("progressSlider").max = steps.length - 1;
+                currentStep = 0;
+                togglePlay(); // Auto-start the fetched animation
+            } else {
+                stepText.innerText = "▶ Analysis failed. No steps generated.";
+            }
+        }
+
+        // 2. RENDER THE BACKEND FRAME
+        function renderFrame(frame, context = {}) {
+            if (!frame) return;
+            const canvasId = context.canvasId || "canvas";
+            const stepTextId = context.stepTextId || "stepText";
+            const sliderId = context.sliderId || "progressSlider";
+            const codeInputId = context.codeInputId || "codeInput";
+
+            let canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            canvas.innerHTML = "";
+
+            // Default to 'array' (bar chart) if the AI doesn't specify a type
+            const type = frame.type || "array";
+
+            // --- 1. RENDER ARRAY (BAR CHART) ---
+            if (type === "array") {
+                const maxVal = Math.max(...frame.array, 1);
+                frame.array.forEach((value, index) => {
+                    let bar = document.createElement("div");
+                    bar.classList.add("bar");
+                    bar.style.height = (value / maxVal) * 260 + "px";
+
+                    let highlightArr = frame.highlight || [];
+                    let sortedArr = frame.sorted || [];
+
+                    if (sortedArr.includes(index)) bar.style.background = "#22c55e";
+                    else if (highlightArr.includes(index)) bar.style.background = frame.action === "swap" ? "#ef4444" : "#eab308";
+                    else bar.style.background = "#38bdf8";
+
+                    let label = document.createElement("span");
+                    label.innerText = value;
+                    bar.appendChild(label);
+                    canvas.appendChild(bar);
+                });
+            }
+
+            // --- 2. RENDER STACK (VERTICAL) ---
+            else if (type === "stack") {
+                let container = document.createElement("div");
+                container.classList.add("stack-container");
+
+                frame.array.forEach((value, index) => {
+                    let item = document.createElement("div");
+                    item.classList.add("stack-item");
+                    item.innerText = value;
+
+                    let highlightArr = frame.highlight || [];
+                    if (highlightArr.includes(index)) {
+                        // Green for pushed item, Red for popped item
+                        item.style.background = frame.action === "pop" ? "#ef4444" : "#22c55e";
+                        item.style.color = "white";
+                    }
+                    container.appendChild(item);
+                });
+                canvas.appendChild(container);
+            }
+
+            // --- 3. RENDER QUEUE (HORIZONTAL) ---
+            else if (type === "queue") {
+                frame.array.forEach((value, index) => {
+                    let wrap = document.createElement("div");
+                    wrap.classList.add("queue-item-wrap");
+
+                    let frontLabel = document.createElement("div");
+                    frontLabel.classList.add("queue-pointer-label");
+                    frontLabel.innerText = "Front";
+                    if (index === 0 && frame.array.length > 0) frontLabel.classList.add("visible");
+
+                    let item = document.createElement("div");
+                    item.classList.add("queue-item");
+                    item.innerText = value;
+
+                    let highlightArr = frame.highlight || [];
+                    if (highlightArr.includes(index)) {
+                        if (frame.action === "dequeue") item.style.background = "#ef4444";
+                        else if (frame.action === "enqueue") item.style.background = "#22c55e";
+                        else item.style.background = "#eab308";
+                        item.style.color = "white";
+                    }
+
+                    let rearLabel = document.createElement("div");
+                    rearLabel.classList.add("queue-pointer-label");
+                    rearLabel.innerText = "Rear";
+                    if (index === frame.array.length - 1 && frame.array.length > 0) rearLabel.classList.add("visible");
+
+                    wrap.appendChild(frontLabel);
+                    wrap.appendChild(item);
+                    wrap.appendChild(rearLabel);
+                    canvas.appendChild(wrap);
+                });
+            }
+
+            // Update text and timeline slider safely
+            const stepTextEl = document.getElementById(stepTextId);
+            if (stepTextEl) {
+                stepTextEl.innerText = "▶ " + (frame.explanation || "Processing...");
+            }
+
+            let slider = document.getElementById(sliderId);
+            if (slider) {
+                if (context.currentStep !== undefined) {
+                    slider.value = context.currentStep;
+                } else if (frame.stepIndex !== undefined) {
+                    slider.value = frame.stepIndex;
+                } else {
+                    // Fallback to global currentStep if running sorting
+                    if (typeof currentStep !== 'undefined' && sliderId === "progressSlider") {
+                        slider.value = currentStep;
+                    }
+                }
+            }
+
+            // Highlight line in textarea
+            if (frame.line !== undefined && frame.line >= 0) {
+                const textarea = document.getElementById(codeInputId);
+                if (textarea) {
+                    const lines = textarea.value.split('\n');
+                    let startPos = 0;
+                    for (let i = 0; i < frame.line && i < lines.length; i++) {
+                        startPos += lines[i].length + 1;
+                    }
+                    let endPos = startPos + (lines[frame.line] ? lines[frame.line].length : 0);
+
+                    const curScroll = textarea.scrollTop;
+                    textarea.focus();
+                    textarea.setSelectionRange(startPos, endPos);
+                    textarea.scrollTop = curScroll;
+                }
+            }
+        }
+
+        // 3. BULLETPROOF MEDIA CONTROLS LOGIC
+        function togglePlay() {
+            if (steps.length === 0) return alert("Click 'Visualize Logic' to analyze code first!");
+
+            if (isPlaying) {
+                pausePlayback();
+            } else {
+                // If at the end, restart from the beginning
+                if (currentStep >= steps.length - 1) {
+                    currentStep = 0;
+                }
+                startPlayback();
+            }
+        }
+
+        function startPlayback() {
+            isPlaying = true;
+            updatePlayBtnUI();
+            renderFrame(steps[currentStep]);
+
+            // Clear any existing clocks to prevent bugs
+            clearInterval(playInterval);
+
+            playInterval = setInterval(() => {
+                if (currentStep < steps.length - 1) {
+                    currentStep++;
+                    renderFrame(steps[currentStep]);
+                } else {
+                    pausePlayback(); // Auto-pause at the end
+                }
+            }, speedMs);
+        }
+
+        function pausePlayback() {
+            isPlaying = false;
+            clearInterval(playInterval);
+            updatePlayBtnUI();
+        }
+
+        function updatePlayBtnUI() {
+            let playBtn = document.getElementById("playPauseBtn");
+            if (!playBtn) return;
+
+            if (isPlaying) {
+                playBtn.innerHTML = "⏸ Pause";
+            } else if (currentStep >= steps.length - 1 && steps.length > 0) {
+                playBtn.innerHTML = "🔄 Replay";
+            } else {
+                playBtn.innerHTML = "▶ Play";
+            }
+        }
+
+        // The button you clicked (⏮). It now automatically plays!
+        function jumpToStart() {
+            if (steps.length === 0) return;
+            currentStep = 0;
+            startPlayback();
+        }
+
+        function jumpToEnd() {
+            if (steps.length === 0) return;
+            pausePlayback();
+            currentStep = steps.length - 1;
+            renderFrame(steps[currentStep]);
+        }
+
+        function stepForward() {
+            if (steps.length === 0) return;
+            pausePlayback();
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                renderFrame(steps[currentStep]);
+            }
+        }
+
+        function stepBack() {
+            if (steps.length === 0) return;
+            pausePlayback();
+            if (currentStep > 0) {
+                currentStep--;
+                renderFrame(steps[currentStep]);
+            }
+        }
+
+        function setSpeed(ms, type) {
+            speedMs = ms;
+
+            document.getElementById("btn-slow").classList.remove("active");
+            document.getElementById("btn-normal").classList.remove("active");
+            document.getElementById("btn-fast").classList.remove("active");
+            document.getElementById("btn-" + type).classList.add("active");
+
+            // If it's currently playing, seamlessly restart the interval at the new speed
+            if (isPlaying) {
+                startPlayback();
+            }
+        }
+
+        function scrubTimeline() {
+            if (steps.length === 0) return;
+            pausePlayback();
+            currentStep = parseInt(document.getElementById("progressSlider").value);
+            renderFrame(steps[currentStep]);
+        }
+
+
+    </script>
+
+    <!-- Auto-Correction Modal -->
+    <div id="correctionModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span style="font-size: 24px;">🔧</span>
+                <h3 class="modal-title">Syntax Correction Suggestion</h3>
+            </div>
+            <div class="modal-body">
+                <p>We detected some syntax errors or formatting mistakes in your algorithm code:</p>
+                <div class="modal-error-box" id="modalErrorDetails">
+                    <!-- Error details will be dynamically inserted here -->
+                </div>
+                <div class="modal-code-comparison">
+                    <div class="modal-code-comparison-header">Changes comparison</div>
+                    <div class="diff-container">
+                        <div class="diff-box">
+                            <div class="diff-box-title">Your Code</div>
+                            <div class="diff-code" id="modalOriginalCode">
+                                <!-- Original code with deletions highlighted -->
+                            </div>
+                        </div>
+                        <div class="diff-box">
+                            <div class="diff-box-title">Corrected Code</div>
+                            <div class="diff-code" id="modalCorrectedCode">
+                                <!-- Corrected code with additions highlighted -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p style="margin-top: 12px;">Would you like to apply these corrections to your editor before running the
+                    visualization?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn secondary" id="modalBtnIgnore"
+                    onclick="handleCorrectionResponse(false)">Keep Original</button>
+                <button type="button" class="modal-btn primary" id="modalBtnApply"
+                    onclick="handleCorrectionResponse(true)">Apply Corrections</button>
+            </div>
+        </div>
+    </div>
+    <script src="i18n.js"></script>
+</body>
+
+</html>
