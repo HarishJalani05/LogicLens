@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="logiclens.css">
 </head>
 
-<body>
+<body class="light">
     <nav>
         <div class="logo">
             <a href="cover.html"
@@ -45,7 +45,10 @@
 
     <div class="container" id="graphContainer" style="margin-top: 40px;">
         <div class="editor">
-            <h3>Graph Setup</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0;">Graph Setup</h3>
+                <button class="about-btn" onclick="toggleAboutModal(true)">💡 About Graphs</button>
+            </div>
 
             <!-- Context Tabs -->
             <div class="mode-tabs" style="margin-bottom: 20px;">
@@ -77,7 +80,7 @@
             <div class="adv-section-head" style="margin-top: 6px;">
                 <h3>Recorded Operations</h3>
             </div>
-            <textarea id="graphCodeInput" style="height: 120px;">node(A)
+            <textarea id="graphCodeInput" class="notranslate" translate="no" readonly style="height: 120px;">node(A)
 node(B)
 node(C)
 node(D)
@@ -154,6 +157,10 @@ bfs(A)</textarea>
                         onclick="setGraphSpeed(1000, 'normal')">Normal</button>
                     <button class="speed-btn" id="btn-graph-fast" onclick="setGraphSpeed(400, 'fast')">Fast</button>
                 </div>
+
+                <button class="btn-incorrect-viz" id="incorrectVizBtn" onclick="saveVisualizationFeedback(false)">
+                    ❌ Incorrect Visualisation?
+                </button>
             </div>
         </div>
     </div>
@@ -191,9 +198,26 @@ bfs(A)</textarea>
     <footer>LogicLens • Visualizing Code Logic</footer>
 
     <script>
-        document.getElementById("themeToggle").addEventListener("change", () => {
-            document.body.classList.toggle("light");
-        });
+        const themeToggle = document.getElementById("themeToggle");
+        const savedTheme = localStorage.getItem("logiclens_theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.remove("light");
+            if (themeToggle) themeToggle.checked = true;
+        } else {
+            document.body.classList.add("light");
+            if (themeToggle) themeToggle.checked = false;
+        }
+        if (themeToggle) {
+            themeToggle.addEventListener("change", () => {
+                if (themeToggle.checked) {
+                    document.body.classList.remove("light");
+                    localStorage.setItem("logiclens_theme", "dark");
+                } else {
+                    document.body.classList.add("light");
+                    localStorage.setItem("logiclens_theme", "light");
+                }
+            });
+        }
 
         let graphMode = 'undirected'; // undefined, directed, weighted
         let logCount = 0;
@@ -743,6 +767,47 @@ bfs(A)</textarea>
             pauseGraphPlayback();
             graphCurrentStep = parseInt(document.getElementById("graphProgressSlider").value);
             renderGraphFrame(graphSteps[graphCurrentStep]);
+        }
+    </script>
+    <!-- About Graphs Modal -->
+    <div id="aboutModal" class="about-modal-overlay" onclick="if(event.target===this) toggleAboutModal(false)">
+        <div class="about-modal-card">
+            <div class="about-modal-header">
+                <div class="about-modal-title">💡 About Graph Algorithms</div>
+                <button class="about-modal-close" onclick="toggleAboutModal(false)">✕</button>
+            </div>
+            <div class="about-modal-body">
+                <h4>Overview</h4>
+                <p>A Graph <i>G = (V, E)</i> consists of <i>V</i> vertices (nodes) and <i>E</i> edges (connections). Graphs model pairwise relationships, mapping complex networks such as social connections, spatial routing, and dependency graphs.</p>
+
+                <h4>Algorithms & Detailed Mechanics</h4>
+                <ul>
+                    <li style="margin-bottom: 16px;">
+                        <strong>1. Breadth-First Search (BFS):</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Explores a graph level-by-level starting from a source vertex <i>S</i> using a FIFO (First-In, First-Out) Queue. It visits all immediate neighbors at distance 1, then all unvisited neighbors at distance 2, systematically expanding concentric frontier rings. Guarantees finding the shortest path (fewest edges) in unweighted graphs. Uses a <code>visited[]</code> set to avoid cyclic loops.</p>
+                        <span class="about-complexity-badge">Time: O(V + E)</span><span class="about-complexity-badge">Space: O(V)</span><span class="about-complexity-badge">Data Structure: FIFO Queue</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>2. Depth-First Search (DFS):</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Explores as deep as possible along each branch before backtracking, utilizing a LIFO Stack or recursive call stack. Traverses down an edge path until reaching a node with no unvisited neighbors, then backtracks to the most recent decision point. Crucial for topological sorting (DAGs), detecting cycles, finding connected components, and maze generation.</p>
+                        <span class="about-complexity-badge">Time: O(V + E)</span><span class="about-complexity-badge">Space: O(V)</span><span class="about-complexity-badge">Data Structure: LIFO Stack / Recursion</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>3. Dijkstra's Shortest Path Algorithm:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">A greedy algorithm that finds the shortest path from a source vertex <i>S</i> to all other vertices in non-negative weighted graphs. Maintains tentative distance array <code>dist[]</code> and repeatedly extracts node <i>U</i> with the minimum tentative distance using a Min-Heap / Priority Queue. Performs <strong>Edge Relaxation</strong>: if <code>dist[U] + W(U, V) &lt; dist[V]</code>, updates <code>dist[V] = dist[U] + W(U, V)</code>. Fails if negative edge weights exist (where Bellman-Ford applies).</p>
+                        <span class="about-complexity-badge">Time: O((V + E) log V)</span><span class="about-complexity-badge">Space: O(V)</span><span class="about-complexity-badge">Data Structure: Min-Heap</span>
+                    </li>
+                </ul>
+
+                <h4>Real-World Applications</h4>
+                <p>GPS navigation systems (Google Maps route calculation), Social network friend recommendation engines, Network packet routing protocols (OSPF), and Web page crawler link graphs.</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleAboutModal(show) {
+            const modal = document.getElementById("aboutModal");
+            if (modal) modal.classList.toggle("active", show);
         }
     </script>
     <script src="i18n.js"></script>
