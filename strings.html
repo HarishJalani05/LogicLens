@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="logiclens.css">
 </head>
 
-<body>
+<body class="light">
     <nav>
         <div class="logo">
             <a href="cover.html"
@@ -45,7 +45,10 @@
 
     <div class="container" id="stringContainer" style="margin-top: 40px;">
         <div class="editor">
-            <h3>String Setup</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0;">String Setup</h3>
+                <button class="about-btn" onclick="toggleAboutModal(true)">💡 About Strings</button>
+            </div>
 
             <!-- Context Tabs -->
             <div class="mode-tabs" style="margin-bottom: 20px;">
@@ -71,7 +74,7 @@
             <div class="adv-section-head" style="margin-top: 6px;">
                 <h3>Recorded Operations</h3>
             </div>
-            <textarea id="stringCodeInput" style="height: 100px;">string(ABC ABCDAB ABCDABCDABDE)
+            <textarea id="stringCodeInput" class="notranslate" translate="no" readonly style="height: 100px;">string(ABC ABCDAB ABCDABCDABDE)
 search(ABCDABD)</textarea>
 
             <button class="viz-btn" id="stringVizBtn" onclick="analyzeStringCode()">
@@ -130,6 +133,10 @@ search(ABCDABD)</textarea>
                         onclick="setStringSpeed(1000, 'normal')">Normal</button>
                     <button class="speed-btn" id="btn-string-fast" onclick="setStringSpeed(400, 'fast')">Fast</button>
                 </div>
+
+                <button class="btn-incorrect-viz" id="incorrectVizBtn" onclick="saveVisualizationFeedback(false)">
+                    ❌ Incorrect Visualisation?
+                </button>
             </div>
         </div>
     </div>
@@ -167,9 +174,26 @@ search(ABCDABD)</textarea>
     <footer>LogicLens • Visualizing Code Logic</footer>
 
     <script>
-        document.getElementById("themeToggle").addEventListener("change", () => {
-            document.body.classList.toggle("light");
-        });
+        const themeToggle = document.getElementById("themeToggle");
+        const savedTheme = localStorage.getItem("logiclens_theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.remove("light");
+            if (themeToggle) themeToggle.checked = true;
+        } else {
+            document.body.classList.add("light");
+            if (themeToggle) themeToggle.checked = false;
+        }
+        if (themeToggle) {
+            themeToggle.addEventListener("change", () => {
+                if (themeToggle.checked) {
+                    document.body.classList.remove("light");
+                    localStorage.setItem("logiclens_theme", "dark");
+                } else {
+                    document.body.classList.add("light");
+                    localStorage.setItem("logiclens_theme", "light");
+                }
+            });
+        }
 
         let stringMode = 'naive';
         let logCount = 0;
@@ -643,6 +667,47 @@ search(ABCDABD)</textarea>
             pauseStringPlayback();
             stringCurrentStep = parseInt(document.getElementById("stringProgressSlider").value);
             renderStringFrame(stringSteps[stringCurrentStep]);
+        }
+    </script>
+    <!-- About String Matching Modal -->
+    <div id="aboutModal" class="about-modal-overlay" onclick="if(event.target===this) toggleAboutModal(false)">
+        <div class="about-modal-card">
+            <div class="about-modal-header">
+                <div class="about-modal-title">💡 About String Matching Algorithms</div>
+                <button class="about-modal-close" onclick="toggleAboutModal(false)">✕</button>
+            </div>
+            <div class="about-modal-body">
+                <h4>Overview</h4>
+                <p>String pattern matching locates all valid occurrence indices of a pattern string <i>P</i> of length <i>M</i> within a primary text body <i>T</i> of length <i>N</i>.</p>
+
+                <h4>Algorithms & Mathematical Formulations</h4>
+                <ul>
+                    <li style="margin-bottom: 16px;">
+                        <strong>1. Naive String Matching:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Slides pattern <code>P[0..M-1]</code> across text <code>T[0..N-1]</code> at every possible alignment index <i>i ∈ [0, N-M]</i>. For each alignment, compares characters sequentially from left to right. When a mismatch occurs, shifts pattern right by 1 position and restarts comparison from <code>P[0]</code>. Inefficient on repetitive text (e.g. searching <code>AAAAAB</code> in <code>AAAAAAAAAAAAAB</code>).</p>
+                        <span class="about-complexity-badge">Worst Time: O((N-M+1)·M)</span><span class="about-complexity-badge">Space: O(1)</span><span class="about-complexity-badge">No Preprocessing</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>2. Knuth-Morris-Pratt (KMP) Algorithm:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Eliminates redundant comparisons by utilizing knowledge gained from previous character matches. Precomputes an <strong>LPS (Longest Prefix Suffix)</strong> array where <code>LPS[i]</code> stores the length of the longest proper prefix of <code>P[0..i]</code> that is also a suffix of <code>P[0..i]</code>. Upon a mismatch after matching <i>j</i> characters, KMP sets <code>j = LPS[j-1]</code> without rewinding text index <i>i</i>, guaranteeing strict O(N) linear time.</p>
+                        <span class="about-complexity-badge">Preprocessing: O(M)</span><span class="about-complexity-badge">Search Time: O(N)</span><span class="about-complexity-badge">Space: O(M)</span><span class="about-complexity-badge">LPS Table</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>3. Rabin-Karp Algorithm:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Uses a <strong>Rolling Hash</strong> function to convert pattern and text substring windows into integer hash values. Computes <code>H(P)</code> and updates <code>H(T[i..i+M-1])</code> in O(1) time as the window slides using modular arithmetic: <code>H(next) = (d · (H(curr) - T[i] · d^(M-1)) + T[i+M]) % q</code>. Only performs character-by-character validation when window hash equals pattern hash.</p>
+                        <span class="about-complexity-badge">Average Time: O(N + M)</span><span class="about-complexity-badge">Worst Time: O(N·M)</span><span class="about-complexity-badge">Rolling Hash</span>
+                    </li>
+                </ul>
+
+                <h4>Real-World Applications</h4>
+                <p>Genomic DNA sequence alignment in bioinformatics, IDE global code search (`Ctrl+F`), plagiarism checking software, and network intrusion detection signature filtering (NIDS).</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleAboutModal(show) {
+            const modal = document.getElementById("aboutModal");
+            if (modal) modal.classList.toggle("active", show);
         }
     </script>
     <script src="i18n.js"></script>
