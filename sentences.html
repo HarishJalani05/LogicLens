@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="logiclens.css">
 </head>
 
-<body>
+<body class="light">
     <nav>
         <div class="logo">
             <a href="cover.html"
@@ -45,7 +45,10 @@
 
     <div class="container" id="sentenceContainer" style="margin-top: 40px;">
         <div class="editor">
-            <h3>Sentence Setup</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="margin: 0;">Sentence Setup</h3>
+                <button class="about-btn" onclick="toggleAboutModal(true)">💡 About Sentences</button>
+            </div>
 
             <!-- Context Tabs -->
             <div class="mode-tabs" style="margin-bottom: 20px;">
@@ -71,7 +74,7 @@
             <div class="adv-section-head" style="margin-top: 6px;">
                 <h3>Recorded Scripts</h3>
             </div>
-            <textarea id="sentenceCodeInput" style="height: 100px;">sentence(logic lens lens logic)
+            <textarea id="sentenceCodeInput" class="notranslate" translate="no" readonly style="height: 100px;">sentence(logic lens lens logic)
 palindrome()</textarea>
 
             <button class="viz-btn" id="sentenceVizBtn" onclick="analyzeSentenceCode()">
@@ -132,6 +135,10 @@ palindrome()</textarea>
                     <button class="speed-btn" id="btn-sentence-fast"
                         onclick="setSentenceSpeed(400, 'fast')">Fast</button>
                 </div>
+
+                <button class="btn-incorrect-viz" id="incorrectVizBtn" onclick="saveVisualizationFeedback(false)">
+                    ❌ Incorrect Visualisation?
+                </button>
             </div>
         </div>
     </div>
@@ -169,9 +176,26 @@ palindrome()</textarea>
     <footer>LogicLens • Visualizing Code Logic</footer>
 
     <script>
-        document.getElementById("themeToggle").addEventListener("change", () => {
-            document.body.classList.toggle("light");
-        });
+        const themeToggle = document.getElementById("themeToggle");
+        const savedTheme = localStorage.getItem("logiclens_theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.remove("light");
+            if (themeToggle) themeToggle.checked = true;
+        } else {
+            document.body.classList.add("light");
+            if (themeToggle) themeToggle.checked = false;
+        }
+        if (themeToggle) {
+            themeToggle.addEventListener("change", () => {
+                if (themeToggle.checked) {
+                    document.body.classList.remove("light");
+                    localStorage.setItem("logiclens_theme", "dark");
+                } else {
+                    document.body.classList.add("light");
+                    localStorage.setItem("logiclens_theme", "light");
+                }
+            });
+        }
 
         let sentenceMode = 'search';
         let logCount = 0;
@@ -642,6 +666,50 @@ palindrome()</textarea>
             pauseSentencePlayback();
             sentenceCurrentStep = parseInt(document.getElementById("sentenceProgressSlider").value);
             renderSentenceFrame(sentenceSteps[sentenceCurrentStep]);
+        }
+    </script>
+    <!-- About Sentences Processing Modal -->
+    <div id="aboutModal" class="about-modal-overlay" onclick="if(event.target===this) toggleAboutModal(false)">
+        <div class="about-modal-card">
+            <div class="about-modal-header">
+                <div class="about-modal-title">💡 About Sentence & Text Processing</div>
+                <button class="about-modal-close" onclick="toggleAboutModal(false)">✕</button>
+            </div>
+            <div class="about-modal-body">
+                <h4>Overview</h4>
+                <p>Sentence and text processing parses raw unformatted character streams into tokenized word arrays <code>W = [w₁, w₂, ..., wₖ]</code>, performing linear word searching, structural token reversal, and palindrome validation.</p>
+
+                <h4>Operations & Detailed Mechanics</h4>
+                <ul>
+                    <li style="margin-bottom: 16px;">
+                        <strong>1. Word Tokenization & Text Normalization:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Splits input sentences into discrete word tokens using whitespace delimiter regular expressions (<code>/\s+/</code>). Strips punctuation marks, normalizes letter casing, and converts raw text into an indexed array of words <i>W</i>. Serves as the primary stage in Natural Language Processing (NLP) token pipelines.</p>
+                        <span class="about-complexity-badge">Tokenization Time: O(N)</span><span class="about-complexity-badge">Space: O(W)</span><span class="about-complexity-badge">NLP Ingestion</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>2. Linear Word Searching:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Scans tokenized word array <i>W</i> sequentially from index 0 to <i>k - 1</i> to locate target search terms. Performs case-insensitive string equality comparisons on each token, stopping early upon match or highlighting all matching word indices across the sentence array.</p>
+                        <span class="about-complexity-badge">Search Time: O(W · L)</span><span class="about-complexity-badge">Space: O(1)</span><span class="about-complexity-badge">Exact Match</span>
+                    </li>
+                    <li style="margin-bottom: 16px;">
+                        <strong>3. Two-Pointer Reversal & Palindrome Validation:</strong>
+                        <p style="margin: 4px 0 6px; color: var(--text2);">Uses two boundary pointers (<code>left = 0</code>, <code>right = k - 1</code>) moving inward toward the sentence center.
+                            <br>• <em>Sentence Reversal:</em> Swaps tokens at <code>left</code> and <code>right</code> indices in-place until pointers cross in O(W) time.
+                            <br>• <em>Palindrome Validation:</em> Compares equality of token pairs <code>W[left]</code> and <code>W[right]</code>. If any pair fails to match, the sentence is instantly flagged as non-palindromic.
+                        </p>
+                        <span class="about-complexity-badge">Two-Pointer Time: O(W)</span><span class="about-complexity-badge">Space: O(1)</span><span class="about-complexity-badge">In-place</span>
+                    </li>
+                </ul>
+
+                <h4>Real-World Applications</h4>
+                <p>Natural language tokenization pipelines in AI models, inverted index building in search engines (Google/Elasticsearch), auto-correct spell checkers, and Sentiment Analysis preprocessing.</p>
+            </div>
+        </div>
+    </div>
+    <script>
+        function toggleAboutModal(show) {
+            const modal = document.getElementById("aboutModal");
+            if (modal) modal.classList.toggle("active", show);
         }
     </script>
     <script src="i18n.js"></script>
