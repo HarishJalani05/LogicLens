@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="logiclens.css">
 </head>
 
-<body>
+<body class="light">
     <nav>
         <div class="logo">
             <a href="cover.html"
@@ -62,7 +62,7 @@
                 <button class="sample-btn" onclick="loadDemo('selection')">Selection Sort</button>
                 <button class="sample-btn" onclick="loadDemo('quick')">Quick Sort</button>
             </div>
-            <textarea id="codeInput" class="notranslate">
+            <textarea id="codeInput" class="notranslate" translate="no">
 for(int i=0;i<n;i++){
  for(int j=0;j<n-i-1;j++){
   if(arr[j] > arr[j+1]){
@@ -188,6 +188,10 @@ for(int i=0;i<n;i++){
                     <button class="speed-btn active" id="btn-normal" onclick="setSpeed(1000, 'normal')">Normal</button>
                     <button class="speed-btn" id="btn-fast" onclick="setSpeed(400, 'fast')">Fast</button>
                 </div>
+
+                <button class="btn-incorrect-viz" id="incorrectVizBtn" onclick="saveVisualizationFeedback(false)">
+                    ❌ Incorrect Visualisation?
+                </button>
             </div>
         </div>
     </div>
@@ -395,9 +399,26 @@ for(int i=0;i<n;i++){
     </style>
 
     <script>
-        document.getElementById("themeToggle").addEventListener("change", () => {
-            document.body.classList.toggle("light");
-        });
+        const themeToggle = document.getElementById("themeToggle");
+        const savedTheme = localStorage.getItem("logiclens_theme") || "light";
+        if (savedTheme === "dark") {
+            document.body.classList.remove("light");
+            if (themeToggle) themeToggle.checked = true;
+        } else {
+            document.body.classList.add("light");
+            if (themeToggle) themeToggle.checked = false;
+        }
+        if (themeToggle) {
+            themeToggle.addEventListener("change", () => {
+                if (themeToggle.checked) {
+                    document.body.classList.remove("light");
+                    localStorage.setItem("logiclens_theme", "dark");
+                } else {
+                    document.body.classList.add("light");
+                    localStorage.setItem("logiclens_theme", "light");
+                }
+            });
+        }
 
         const demos = {
             bubble: "void bubbleSort(int arr[], int n) {\n  for(int i=0; i<n; i++) {\n    for(int j=0; j<n-i-1; j++) {\n      if(arr[j] > arr[j+1]) {\n        int temp = arr[j];\n        arr[j] = arr[j+1];\n        arr[j+1] = temp;\n      }\n    }\n  }\n}",
